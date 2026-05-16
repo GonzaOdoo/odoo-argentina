@@ -31,6 +31,11 @@ def migrate(cr, version):
         "tax_tag_a_cuenta_iva",
         "tag_ret_perc_iibb_aplicada",
         "tag_ret_perc_sicore_aplicada",
+        "tag_tax_jurisdiccion_901",
+        "tag_tax_jurisdiccion_921",
+        "tag_tax_jurisdiccion_922",
+        "tag_tax_jurisdiccion_923",
+        "tag_tax_jurisdiccion_924",
     ]
     for xml_id_name in xml_id_names:
         account_tag_id = env.ref(f"l10n_ar_ux.{xml_id_name}", raise_if_not_found=False)
