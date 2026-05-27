@@ -6,8 +6,10 @@ from collections import defaultdict
 
 from odoo import Command, _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
+import pprint
+import logging
 
-
+_logger = logging.getLogger(__name__)
 class AccountPayment(models.Model):
     _inherit = "account.payment"
 
@@ -316,6 +318,21 @@ class AccountPayment(models.Model):
                 if self.company_currency_id.is_zero(liquidity_lines[0]["balance"]):
                     res["liquidity_lines"] = []
             counterpart_lines = res.get("counterpart_lines", [])
+            _logger.warning(
+                "ANTES CP=%s LIQ=%s WTH=%s",
+                counterpart_lines[0]["balance"],
+                liquidity_lines[0]["balance"],
+                wth_balance,
+            )
+            for liq in liquidity_lines:
+                _logger.info(liq)
+            if counterpart_lines and has_checks:
+                counterpart_lines[0]["balance"] -= wth_balance
+                counterpart_lines[0]["amount_currency"] -= wth_balance
+                liquidity_lines[0]["balance"] += wth_balance
+                liquidity_lines[0]["amount_currency"] += wth_balance
+            for liq in liquidity_lines:
+                _logger.info(liq)
             if counterpart_lines:
                 if not has_checks:
                     # When has_checks, account_payment_pro already computed counterpart correctly
@@ -360,7 +377,6 @@ class AccountPayment(models.Model):
                 # Esto ocurre con has_checks porque l10n_ar_tax no ajusta amount_currency en ese caso.
                 if counterpart_lines[0].get("currency_id") == self.company_currency_id.id:
                     counterpart_lines[0]["amount_currency"] = counterpart_lines[0]["balance"]
-
         return res
 
     def action_post(self):
@@ -456,16 +472,67 @@ class AccountPayment(models.Model):
 
     @api.depends("l10n_ar_fiscal_position_id", "partner_id", "company_id", "date")
     def _compute_l10n_ar_withholding_line_ids(self):
-        # metodo completamente analogo a payment.register._compute_l10n_ar_withholding_ids
+    
+        earnings_tax = self.env["account.tax"].search([
+            ("l10n_ar_tax_type", "=", "earnings")
+        ], limit=1)
+    
         for rec in self.filtered(lambda x: x.partner_type == "supplier"):
+    
             date = rec.date or fields.Date.context_today(rec)
+    
             withholdings = [Command.clear()]
+    
+            taxes = self.env["account.tax"]
+    
+            # -------------------------------------------------
+            # Taxes desde posición fiscal
+            # -------------------------------------------------
             if rec.l10n_ar_fiscal_position_id.l10n_ar_tax_ids:
-                taxes = rec.l10n_ar_fiscal_position_id._l10n_ar_add_taxes(
-                    rec.partner_id, rec.company_id, date, "withholding", rec
+                taxes |= rec.l10n_ar_fiscal_position_id._l10n_ar_add_taxes(
+                    rec.partner_id,
+                    rec.company_id,
+                    date,
+                    "withholding",
+                    rec,
                 )
-                withholdings += [Command.create({"tax_id": x.id}) for x in taxes]
+    
+            # -------------------------------------------------
+            # Agregar ganancias automáticamente
+            # -------------------------------------------------
+            partner = rec.partner_id
+    
+            if (
+                partner.default_regimen_ganancias_id
+                and partner.imp_ganancias_padron in ["AC", "NI", "EX"]
+            ):
+                taxes |= earnings_tax
+    
+            # evitar duplicados
+            taxes = taxes.sorted(key=lambda x: x.id)
+    
+            # crear líneas
+            withholdings += [
+                Command.create({
+                    "tax_id": tax.id,
+                })
+                for tax in taxes
+            ]
+    
             rec.l10n_ar_withholding_line_ids = withholdings
+
+    #@api.depends("l10n_ar_fiscal_position_id", "partner_id", "company_id", "date")
+    #def _compute_l10n_ar_withholding_line_ids(self):
+        # metodo completamente analogo a payment.register._compute_l10n_ar_withholding_ids
+    #    for rec in self.filtered(lambda x: x.partner_type == "supplier"):
+    #        date = rec.date or fields.Date.context_today(rec)
+    #        withholdings = [Command.clear()]
+    #        if rec.l10n_ar_fiscal_position_id.l10n_ar_tax_ids:
+    #            taxes = rec.l10n_ar_fiscal_position_id._l10n_ar_add_taxes(
+    #                rec.partner_id, rec.company_id, date, "withholding", rec
+    #            )
+    #            withholdings += [Command.create({"tax_id": x.id}) for x in taxes]
+    #        rec.l10n_ar_withholding_line_ids = withholdings
 
     def compute_to_pay_amount_for_check(self):
         checks_payments = self.filtered(

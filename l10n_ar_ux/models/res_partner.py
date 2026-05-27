@@ -43,8 +43,12 @@ class ResPartner(models.Model):
     impuestos_padron = fields.Many2many(
         "afip.tax", "res_partner_afip_tax_rel", "partner_id", "afip_tax_id", "Impuestos"
     )
+    default_regimen_ganancias_id = fields.Many2one(
+        'afip.tabla_ganancias.alicuotasymontos',
+        'Regimen Ganancias por Defecto',
+    )
     last_update_padron = fields.Date()
-
+    
     @api.constrains("gross_income_jurisdiction_ids", "state_id")
     def check_gross_income_jurisdictions(self):
         for rec in self:

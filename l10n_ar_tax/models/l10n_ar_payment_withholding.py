@@ -207,6 +207,11 @@ class l10nArPaymentWithholding(models.Model):
             if not tax_id:
                 line.amount = 0.0
                 line.ref = False
+            if line.tax_id.l10n_ar_tax_type == "earnings":
+                amount, ref = line._earnings_compute_helper()
+                line.amount = amount
+                line.ref = ref
+                continue
             else:
                 tax_amount, __, __, ref = line._tax_compute_all_helper()
                 line.amount = tax_amount
@@ -284,6 +289,65 @@ class l10nArPaymentWithholding(models.Model):
         self.ensure_one()
         return self.tax_id
 
+    
+    #def _get_withholding_tax(self):
+    #    """Return the applicable withheld tax"""
+    #    self.ensure_one()
+    #    return self.tax_id
+
+
+    def _earnings_compute_helper(self):
+        self.ensure_one()
+    
+        tax = self.tax_id
+        partner = self.payment_id.partner_id
+        company_currency = self.payment_id.company_currency_id
+    
+        regimen = partner.default_regimen_ganancias_id
+    
+        if not regimen:
+            return 0.0, False
+    
+        same_period_withholdings = self._get_same_period_withholdings_amount()
+        same_period_base = self._get_same_period_base_amount()
+    
+        non_taxable_amount = regimen.montos_no_sujetos_a_retencion
+    
+        net_amount = self.base_amount + same_period_base
+        taxable_amount = max(0.0, net_amount - non_taxable_amount)
+    
+        f = company_currency.format
+    
+        if taxable_amount <= 0:
+            ref = (
+                f"{f(self.base_amount)} + "
+                f"{f(same_period_base)} - "
+                f"{f(non_taxable_amount)} = "
+                f"{f(net_amount - non_taxable_amount)} "
+                f"(no corresponde aplicar)"
+            )
+            return 0.0, ref
+    
+        aliquot = (
+            regimen.porcentaje_inscripto
+            if partner.imp_ganancias_padron == "AC"
+            else regimen.porcentaje_no_inscripto
+        )
+    
+        tax_amount = (taxable_amount * aliquot / 100.0) - same_period_withholdings
+    
+        tax_amount = max(0.0, tax_amount)
+    
+        ref = (
+            f"({f(self.base_amount)} + "
+            f"{f(same_period_base)} - "
+            f"{f(non_taxable_amount)}) "
+            f"* {aliquot}% - "
+            f"{f(same_period_withholdings)}"
+        )
+    
+        return tax_amount, ref
+
     ##########
     # ACTIONS
     ##########
@@ -301,3 +365,4 @@ class l10nArPaymentWithholding(models.Model):
             "view_id": self.env.ref("l10n_ar_tax.view_l10n_ar_payment_withholding_tree").id,
             "domain": [("id", "in", same_period_withholdings.ids)],
         }
+

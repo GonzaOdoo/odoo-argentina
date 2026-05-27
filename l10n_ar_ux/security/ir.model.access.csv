@@ -3,3 +3,4 @@ access_afip_concept_manager,access_afip_concept_manager,model_afip_concept,accou
 access_afip_tax_manager,access_afip_tax_manager,model_afip_tax,account.group_account_manager,1,1,1,1
 access_afip_concept_all,access_afip_concept_all,model_afip_concept,base.group_user,1,0,0,0
 access_afip_tax_all,access_afip_tax_all,model_afip_tax,base.group_user,1,0,0,0
+access_afip_tabla_ganancias_alicuotasymontos_user,afip.tabla_ganancias.alicuotasymontos.user,model_afip_tabla_ganancias_alicuotasymontos,base.group_user,1,1,1,1

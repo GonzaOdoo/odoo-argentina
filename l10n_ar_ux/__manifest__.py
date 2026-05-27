@@ -13,6 +13,7 @@
     ],
     "data": [
         "data/res_currency_data.xml",
+        'data/tabla_ganancias_data.xml',
         "data/account_account_tag_data.xml",
         "views/res_partner_view.xml",
         "views/afip_concept_view.xml",
