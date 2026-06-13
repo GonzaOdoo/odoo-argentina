@@ -87,3 +87,23 @@ def migrate(cr, version):
     """)
     _logger.warning("Rows updated: %s", cr.rowcount)
     _logger.warning("Set payment_date to create_date for l10n_latam_check with id 1400")
+    # Corregimos campo Studio que en v19 pasa a requerido
+    cr.execute("""
+        UPDATE sale_order
+        SET x_studio_stockcliente = 'Cliente'
+        WHERE id = 1127
+        AND x_studio_stockcliente IS NULL
+    """)
+    _logger.warning(
+        "Fixed x_studio_stockcliente on sale_order 1127"
+    )
+
+    cr.execute("""
+        SELECT id, x_studio_stockcliente
+        FROM sale_order
+        WHERE id = 1127
+    """)
+    _logger.warning(
+        "Sale order after update: %s",
+        cr.fetchall()
+    )
