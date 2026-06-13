@@ -72,3 +72,10 @@ def migrate(cr, version):
                 """,
                     (xml_id_name,),
                 )
+    cr.execute("""
+        UPDATE l10n_latam_check
+           SET payment_date = create_date::date
+         WHERE id = 1400
+           AND payment_date IS NULL
+    """)
+    _logger.warning("Set payment_date to create_date for l10n_latam_check with id 1400")
