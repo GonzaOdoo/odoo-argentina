@@ -81,28 +81,9 @@ def migrate(cr, version):
     _logger.warning("Check data: %s", cr.fetchall())
     cr.execute("""
         UPDATE l10n_latam_check
-           SET payment_date = create_date::date
+           SET payment_date = '2026-05-07'
          WHERE id = 1400
            AND payment_date IS NULL
     """)
     _logger.warning("Rows updated: %s", cr.rowcount)
     _logger.warning("Set payment_date to create_date for l10n_latam_check with id 1400")
-    _logger.info("  Verificamos que el payment_date se haya seteado correctamente")
-    cr.execute("""
-    SELECT id,
-            create_date,
-            l10n_latam_check_payment_date
-        FROM account_payment
-        WHERE id = 23682
-    """)
-    _logger.warning("Payment before migration: %s", cr.fetchall())
-    cr.execute("""
-        UPDATE account_payment
-        SET l10n_latam_check_payment_date = create_date::date
-        WHERE id = 23682
-        AND l10n_latam_check_payment_date IS NULL
-    """)
-
-    _logger.warning(
-        "Fixed missing l10n_latam_check_payment_date on account.payment 23682"
-    )
